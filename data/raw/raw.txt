@@ -1,0 +1,2 @@
+Raw json data files are written to this directory, with naming scheme of 
+city + category + (number) + date.
