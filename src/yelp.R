@@ -34,7 +34,7 @@ make_yelp_request <- function(city, category, offset = 0,
                               url = yelp_search, 
                               key = api_key) {
   ## pause between API requests to avoid rate-limiting
-  Sys.sleep(10)
+  Sys.sleep(2)
   
   ## make request
   query_list <-

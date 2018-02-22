@@ -7,6 +7,10 @@ library(tidyr)
 library(purrr)
 library(tibble)
 
+# extract functions ----
+extract2_with_na <- function(x, y) if (is.null(x[[y]])) NA else x[[y]]
+extract_with_na <- Vectorize(extract2_with_na, vectorize.args = "y", SIMPLIFY = FALSE)
+
 # Data set 1 ----
 # names and unique keys for each search (city + category)
 cities <- read_lines("data/cities.txt")
@@ -59,9 +63,10 @@ basic_restaurant_information <-
   map("businesses") %>%
   flatten() %>%
   compact() %>%
-  map_dfr(magrittr::extract, 
-          c("id", "name", "rating", "review_count", "url")) %>%
+  map_dfr(extract_with_na, 
+          c("id", "name", "price", "rating", "review_count", "url")) %>%
   mutate(search_key = search_key_and_id$search_key)
+
 
 # categories ----
 restaurant_categories <- 
@@ -70,40 +75,53 @@ restaurant_categories <-
   flatten() %>%
   map("categories") %>% 
   set_names(search_key_and_id$id) %>%
-  map(as_tibble) %>%
-  bind_rows(.id = "id") %>%
-  set_colnames(c("id", "category_description", "category"))
+  map(~map_df(., as_tibble)) %>%
+  bind_rows(.id = "id")
 
 # locations ----
-restaurant_locations <- 
+
+restaurant_coordinates <- 
+  responses %>%
+  map("businesses") %>%
+  flatten() %>%
+  map("coordinates") %>% 
+  set_names(search_key_and_id$id) %>%
+  # compact() %>%
+  map_dfr(extract_with_na, c("latitude", "longitude"), .id = "id") %>%
+  mutate(search_key = search_key_and_id$search_key)
+
+# restaurant_locations <- 
+#   responses %>%
+#   map("businesses") %>%
+#   flatten() %>%
+#   map("location") %>%
+#   set_names(search_key_and_id$id) %>%
+#   map_dfr(function(x) {
+#     data_frame(
+#       address = x$address1, 
+#       city = x$city, 
+#       zip_code = x$zip_code, 
+#       country = x$country
+#     )
+#   }, .id = "id")
+
+restaurant_locations <-
   responses %>%
   map("businesses") %>%
   flatten() %>%
   map("location") %>%
   set_names(search_key_and_id$id) %>%
-  map_dfr(function(x) {
-    address <- if (length(x$address) > 0) str_c(x$address, collapse = ", ") else NA
-    zip <- if (!is.null(x$postal_code)) x$postal_code  else NA
-    lat <- if (!is.null(x$coordinate$latitude)) x$coordinate$latitude else NA
-    lon <- if (!is.null(x$coordinate$longitude)) x$coordinate$longitude else NA
-    data_frame(
-      address = address, 
-      city = x$city, 
-      state_code = x$state_code,
-      postal_code = zip,
-      country_code = x$country_code, 
-      latitude = lat, 
-      longitude = lon
-    ) 
-  }, .id = "id") %>%
-  mutate(search_key = search_key_and_id$search_key)
-
+  map_dfr(extract_with_na,
+          c("address1", "city", "state", "zip_code", "country"), 
+          .id = "id") %>%
+ mutate(search_key = search_key_and_id$search_key)
 
 # join ----
 # unit of observation: restaurant
 restaurants <- 
   basic_restaurant_information %>% 
   left_join(restaurant_locations, by = c("id", "search_key")) %>%
+  left_join(restaurant_coordinates, by = c("id", "search_key")) %>%
   left_join(search_keys, by = "search_key")
   
 # unit of observation: restaurant X category
@@ -111,9 +129,8 @@ restaurants <-
 # even after using distinct both times, 4073 vs 4070
 
 unique_restaurants <- 
-  basic_restaurant_information %>% 
-  left_join(restaurant_locations, by = c("id", "search_key")) %>%
-  select(-search_key) %>%
+  restaurants %>%
+  select(-search_city, -search_key, -search_category) %>%
   distinct()
 
 restaurants_by_category <- 
@@ -152,3 +169,10 @@ restaurants %>%
   filter(city == "Seattle") %>%
   group_by(city, postal_code, search_category) %>%
   count() 
+
+# Seattle restaurants, no duplicate handling
+seattle_restaurants <- 
+  restaurants %>%
+  filter(city == "Seattle") 
+
+write_csv(seattle_restaurants, "data/seattle_restaurants.csv")
