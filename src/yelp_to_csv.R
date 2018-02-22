@@ -9,7 +9,8 @@ library(tibble)
 
 # extract functions ----
 extract2_with_na <- function(x, y) if (is.null(x[[y]])) NA else x[[y]]
-extract_with_na <- Vectorize(extract2_with_na, vectorize.args = "y", SIMPLIFY = FALSE)
+extract_with_na <- Vectorize(extract2_with_na, vectorize.args = "y", 
+                             SIMPLIFY = FALSE)
 
 # Data set 1 ----
 # names and unique keys for each search (city + category)
@@ -86,24 +87,8 @@ restaurant_coordinates <-
   flatten() %>%
   map("coordinates") %>% 
   set_names(search_key_and_id$id) %>%
-  # compact() %>%
   map_dfr(extract_with_na, c("latitude", "longitude"), .id = "id") %>%
   mutate(search_key = search_key_and_id$search_key)
-
-# restaurant_locations <- 
-#   responses %>%
-#   map("businesses") %>%
-#   flatten() %>%
-#   map("location") %>%
-#   set_names(search_key_and_id$id) %>%
-#   map_dfr(function(x) {
-#     data_frame(
-#       address = x$address1, 
-#       city = x$city, 
-#       zip_code = x$zip_code, 
-#       country = x$country
-#     )
-#   }, .id = "id")
 
 restaurant_locations <-
   responses %>%
