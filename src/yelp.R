@@ -8,23 +8,12 @@ library(yaml)
 
 ## Set up API and oauth --------------------------------------------------------
 
-## read keys from a YAML file, which *isn't* committed to the git repo
+## read api key from a YAML file, which *isn't* committed to the git repo
 keys <- yaml.load_file("src/yelp.yml")
-consumer_key <- keys$consumer_key
-consumer_secret <- keys$consumer_secret
-token <- keys$token
-token_secret <- keys$token_secret
+api_key = keys$api_key
 
-myapp <- oauth_app("yelp", 
-                   key = consumer_key, 
-                   secret = consumer_secret)
-sig <- sign_oauth1.0(myapp, token = token, token_secret = token_secret)
-## this is deprecated, but it works
-## to use an endpoint with oauth2, would need to use v3 
-## of the yelp API, which isn't as extensive
-
-## yelp API v2 search url
-yelp_search <- "https://api.yelp.com/v2/search"
+## yelp API v3 business search url
+yelp_search <- "https://api.yelp.com/v3/businesses/search"
 
 ## read in list of cities
 cities <- read_lines("data/cities.txt")
@@ -38,23 +27,27 @@ request_params <-
   as_tibble()
 
 ## Main function for making requests -------------------------------------------
-## Note presence of hard-coded values like sleep time (10), 
-## category filter ("gaybars"), and the file path
-## as well as globals like yelp_search and sig
+## Note presence of hard-coded values like sleep time (10) and the file path
+## as well as global variables like yelp_search and api_key as defaults
 
-make_yelp_request <- function(city, category, offset = 0) {
+make_yelp_request <- function(city, category, offset = 0, 
+                              url = yelp_search, 
+                              key = api_key) {
   ## pause between API requests to avoid rate-limiting
   Sys.sleep(10)
   
   ## make request
-  ## yelp_search and sig are global variables
   query_list <-
     list(
-      category_filter = category, 
+      categories = category, 
       location = city, 
       offset = offset
     )
-  r <- GET(yelp_search, sig, query = query_list)
+  ## authentication using header is explained here:
+  ## https://www.yelp.com/developers/documentation/v3/authentication
+  r <- GET(yelp_search, 
+           add_headers(Authorization = str_c("Bearer ", key)), 
+           query = query_list)
   
   ## write response to json file
   ## only if http status is ok
