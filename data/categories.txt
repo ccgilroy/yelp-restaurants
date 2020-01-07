@@ -1,5 +1,6 @@
 afghani
 african
+newamerican
 arabian
 argentine
 brazilian
