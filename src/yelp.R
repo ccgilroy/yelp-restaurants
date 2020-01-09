@@ -4,6 +4,7 @@ library(jsonlite)
 library(purrr)
 library(readr)
 library(stringr)
+library(tidyr)
 library(yaml)
 
 ## Set up API and oauth --------------------------------------------------------
@@ -21,13 +22,10 @@ cities <- read_lines("data/cities.txt")
 ## read in list of categories
 categories <- read_lines("data/categories.txt")
 
-request_params <- 
-  expand.grid(city = cities, category = categories, 
-              stringsAsFactors = FALSE) %>%
-  as_tibble()
+request_params <- expand_grid(city = cities, category = categories)
 
 ## Main function for making requests -------------------------------------------
-## Note presence of hard-coded values like sleep time (10) and the file path
+## Note presence of hard-coded values like sleep time (2) and the file path
 ## as well as global variables like yelp_search and api_key as defaults
 
 make_yelp_request <- function(city, category, offset = 0, 
@@ -106,4 +104,7 @@ pmap(request_params, function(city, category) {
 ## save as R object for request information
 saveRDS(responses, "data/raw/responses.rds")
 
-
+## check results
+flat_responses <- rlang::flatten(responses)
+status_codes <- map_int(flat_responses, status_code)
+which(status_codes != 200)

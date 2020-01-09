@@ -65,7 +65,7 @@ basic_restaurant_information <-
   flatten() %>%
   compact() %>%
   map_dfr(extract_with_na, 
-          c("id", "name", "price", "rating", "review_count", "url")) %>%
+          c("id", "alias", "name", "price", "rating", "review_count", "url")) %>%
   mutate(search_key = search_key_and_id$search_key)
 
 
@@ -161,3 +161,6 @@ seattle_restaurants <-
   filter(city == "Seattle") 
 
 write_csv(seattle_restaurants, "data/seattle_restaurants.csv")
+
+# all restaurants, no duplicate handling
+write_csv(restaurants, "data/restaurants.csv")
